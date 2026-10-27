@@ -16,7 +16,7 @@ import (
 )
 
 // Version is pattan's version.
-const Version = "0.1.0"
+const Version = "0.1.1"
 
 const usage = `pattan: the ports your dev servers listen on, and their tunnels.
 
