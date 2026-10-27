@@ -1,0 +1,27 @@
+# Keys inside the pattan screen, for Vayu's keybinding search
+# (keybind-search.py reads ~/.tmux/plugins/*/scripts). Generated from
+# internal/tui/keys.go by `go test ./internal/tui -update`; don't edit.
+# keybind: Tmux/pattan | j / k | Move to the next / previous port
+# keybind: Tmux/pattan | Home / End | Jump to the first / last port
+# keybind: Tmux/pattan | Tab / Shift+Tab | Switch to the next / previous tab
+# keybind: Tmux/pattan | 1 – 4 | Switch to Dev servers, All listening, Tunnels or Docker
+# keybind: Tmux/pattan | a | Show every listening port (the All listening tab)
+# keybind: Tmux/pattan | / | Search the list by port, app, project or URL (filters it)
+# keybind: Tmux/pattan | r | Rescan the ports now (it also rescans every 2 s)
+# keybind: Tmux/pattan | ? | Show every key
+# keybind: Tmux/pattan | q / Esc | Quit (Esc clears the filter first)
+# keybind: Tmux/pattan | Enter | Open localhost:port in the browser
+# keybind: Tmux/pattan | y | Copy the URL
+# keybind: Tmux/pattan | Y | Copy the URL other machines on your network can use
+# keybind: Tmux/pattan | g | Jump to the tmux pane the server runs in
+# keybind: Tmux/pattan | t | Start a tunnel to the port, to share it (ngrok, cloudflared, tailscale funnel...)
+# keybind: Tmux/pattan | T | Show the port's tunnel in the Tunnels tab
+# keybind: Tmux/pattan | x | Stop the server (asks first; a container is stopped with docker stop)
+# keybind: Tmux/pattan | K | Force stop the server (SIGKILL; asks first)
+# keybind: Tmux/pattan | Enter | Open the tunnel's public URL in the browser (Tunnels tab)
+# keybind: Tmux/pattan | o | Open the local server the tunnel points at (Tunnels tab)
+# keybind: Tmux/pattan | y | Copy the public URL (Tunnels tab)
+# keybind: Tmux/pattan | J / K | Move through the tunnel's last requests (ngrok) (Tunnels tab)
+# keybind: Tmux/pattan | R | Send the selected request through the tunnel again (ngrok replay) (Tunnels tab)
+# keybind: Tmux/pattan | i | Open ngrok's request inspector in the browser (Tunnels tab)
+# keybind: Tmux/pattan | x | Stop the tunnel (asks first) (Tunnels tab)
