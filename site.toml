@@ -1,0 +1,8 @@
+# The project website (docs/, GitHub Pages): built by scripts/build-site.py
+name = "pattan"
+sanskrit = "पत्तन"
+meaning = "port, harbour"
+tagline = "The ports your dev servers listen on, Docker's and the tunnels that make them public, in the terminal: Enter opens one in the browser."
+color = "teal"
+kind = "ports & tunnels"
+logo = "assets/logo.svg"
