@@ -10,7 +10,7 @@ Vayu-specific behaviour only through the `@pattan-*` options.
 
 - Layout: `internal/scan` finds things (ss and /proc for ports, docker ps,
   HTTP probes, tunnels); `internal/tui` the screen; `internal/ui` the
-  drawing kit shared in look with sandesh and nauka (rounded boxes, tabs,
+  drawing kit shared in look with narada and nauka (rounded boxes, tabs,
   key caps, varna colours).
 - Keys live in `internal/tui/keys.go`. After adding, changing or removing
   one: `go test ./internal/tui -update` (rewrites `scripts/keybindings`,
