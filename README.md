@@ -19,6 +19,11 @@ pattan (पत्तन) is Sanskrit for a harbour: where things come in and go 
  ports   j/k move   ↵ open in browser   y copy URL   g its tmux pane   t share   x stop
 ```
 
+<p align="center">
+  <img alt="pattan's Dev servers tab, filtered to one project: a Vite and a Python dev server with their HTTP status, the project's Docker ports below, and the selected server's process, command and folder" src="assets/screenshots/dev.png" width="100%">
+</p>
+<p align="center"><sub>Screenshots use made-up demo projects.</sub></p>
+
 ## What it shows
 
 - **Dev servers**: the TCP ports your own processes listen on from inside
