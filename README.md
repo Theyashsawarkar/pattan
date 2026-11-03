@@ -1,5 +1,20 @@
 # pattan
 
+<!-- identity -->
+<p align="center">
+  <img alt="pattan logo" src="assets/logo.svg" width="120">
+</p>
+
+<p align="center">
+  <b>सर्वकर्माणि मनसा संन्यस्यास्ते सुखं वशी ।<br>
+  नवद्वारे पुरे देही नैव कुर्वन्न कारयन् ॥</b><br>
+  <i>Master of itself, the embodied one rests at ease in the city of nine gates.</i><br>
+  <sub>Bhagavad Gītā 5.13</sub>
+</p>
+<!-- /identity -->
+
+> *Pattan* (पत्तन) is Sanskrit for "port, harbour": where your connections come in.
+
 **The ports your dev servers listen on, Docker's published ports, and the
 tunnels that make them public, in the terminal.** Enter opens
 `localhost:port` in the browser.

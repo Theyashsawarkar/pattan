@@ -6,3 +6,6 @@ tagline = "The ports your dev servers listen on, Docker's and the tunnels that m
 color = "teal"
 kind = "ports & tunnels"
 logo = "assets/logo.svg"
+shloka = "सर्वकर्माणि मनसा संन्यस्यास्ते सुखं वशी ।\nनवद्वारे पुरे देही नैव कुर्वन्न कारयन् ॥"
+shloka_meaning = "Master of itself, the embodied one rests at ease in the city of nine gates."
+shloka_source = "Bhagavad Gītā 5.13"
