@@ -1,27 +1,52 @@
 # Keys inside the pattan screen, for Vayu's keybinding search
 # (keybind-search.py reads ~/.tmux/plugins/*/scripts). Generated from
-# internal/tui/keys.go by `go test ./internal/tui -update`; don't edit.
-# keybind: Tmux/pattan | j / k | Move to the next / previous port
-# keybind: Tmux/pattan | Home / End | Jump to the first / last port
-# keybind: Tmux/pattan | Tab / Shift+Tab | Switch to the next / previous tab
-# keybind: Tmux/pattan | 1 – 4 | Switch to Dev servers, All listening, Tunnels or Docker
-# keybind: Tmux/pattan | a | Show every listening port (the All listening tab)
-# keybind: Tmux/pattan | / | Search the list by port, app, project or URL (filters it)
-# keybind: Tmux/pattan | r | Rescan the ports now (it also rescans every 2 s)
-# keybind: Tmux/pattan | ? | Show every key
-# keybind: Tmux/pattan | q / Esc | Quit (Esc clears the filter first)
-# keybind: Tmux/pattan | Enter | Open localhost:port in the browser
-# keybind: Tmux/pattan | y | Copy the URL
-# keybind: Tmux/pattan | Y | Copy the URL other machines on your network can use
-# keybind: Tmux/pattan | g | Jump to the tmux pane the server runs in
-# keybind: Tmux/pattan | t | Start a tunnel to the port, to share it (ngrok, cloudflared, tailscale funnel...)
-# keybind: Tmux/pattan | T | Show the port's tunnel in the Tunnels tab
-# keybind: Tmux/pattan | x | Stop the server (asks first; a container is stopped with docker stop)
-# keybind: Tmux/pattan | K | Force stop the server (SIGKILL; asks first)
-# keybind: Tmux/pattan | Enter | Open the tunnel's public URL in the browser (Tunnels tab)
-# keybind: Tmux/pattan | o | Open the local server the tunnel points at (Tunnels tab)
-# keybind: Tmux/pattan | y | Copy the public URL (Tunnels tab)
-# keybind: Tmux/pattan | J / K | Move through the tunnel's last requests (ngrok) (Tunnels tab)
-# keybind: Tmux/pattan | R | Send the selected request through the tunnel again (ngrok replay) (Tunnels tab)
-# keybind: Tmux/pattan | i | Open ngrok's request inspector in the browser (Tunnels tab)
-# keybind: Tmux/pattan | x | Stop the tunnel (asks first) (Tunnels tab)
+# the keymap by `go test ./internal/tui -update`; don't edit.
+# keybind-group: Tmux/pattan | Space f | Find
+# keybind-group: Tmux/pattan | Space t | Tabs
+# keybind-group: Tmux/pattan | Space o | Open
+# keybind-group: Tmux/pattan | Space y | Copy
+# keybind-group: Tmux/pattan | Space d | Delete
+# keybind-group: Tmux/pattan | Space a | Add
+# keybind-group: Tmux/pattan | Space g | Go to
+# keybind-group: Tmux/pattan | Space i | Inspect
+# keybind: Tmux/pattan:normal | j / Down | Move to the next port
+# keybind: Tmux/pattan:normal | k / Up | Move to the previous port
+# keybind: Tmux/pattan:normal | g g / Home | Jump to the first port (5gg: the fifth)
+# keybind: Tmux/pattan:normal | G / End | Jump to the last port (5G: the fifth)
+# keybind: Tmux/pattan:normal | Ctrl+d / PgDn | Scroll half a page down
+# keybind: Tmux/pattan:normal | Ctrl+u / PgUp | Scroll half a page up
+# keybind: Tmux/pattan:normal | L / Tab | Switch to the next tab
+# keybind: Tmux/pattan:normal | H / Shift+Tab | Switch to the previous tab
+# keybind: Tmux/pattan:normal | / / Space f f | Search the list by port, app, project or URL (filters it)
+# keybind: Tmux/pattan:normal | r / Space r | Rescan the ports now (it also rescans every 2 s)
+# keybind: Tmux/pattan:normal | ? / Space ? | Show every key of this view
+# keybind: Tmux/pattan:normal | Space Space | Search every action and run one (the palette)
+# keybind: Tmux/pattan:normal | q / Space q | Quit
+# keybind: Tmux/pattan:normal | Esc | Go back one step: clear the filter, then quit
+# keybind: Tmux/pattan:normal | Space t d / Space t 1 | Switch to Dev servers
+# keybind: Tmux/pattan:normal | Space t a / Space t 2 | Switch to All listening (every port)
+# keybind: Tmux/pattan:normal | Space t t / Space t 3 | Switch to Tunnels
+# keybind: Tmux/pattan:normal | Space t k / Space t 4 | Switch to Docker
+# keybind: Tmux/pattan ports:normal | Enter | Open localhost:port in the browser
+# keybind: Tmux/pattan ports:normal | o / Space o b | Open localhost:port in the browser
+# keybind: Tmux/pattan ports:normal | y / Space y u | Copy the URL
+# keybind: Tmux/pattan ports:normal | Y / Space y l | Copy the URL other machines on your network can use
+# keybind: Tmux/pattan ports:normal | Space y p | Copy the public URL of the port's tunnel
+# keybind: Tmux/pattan ports:normal | d d / x / Space d s | Stop the server (asks first; a container is stopped with docker stop)
+# keybind: Tmux/pattan ports:normal | Space d k | Kill the server at once (SIGKILL; asks first)
+# keybind: Tmux/pattan ports:normal | Space d t | Stop the port's tunnel (asks first)
+# keybind: Tmux/pattan ports:normal | Space a t | Start a tunnel to the port, to share it (ngrok, cloudflared, tailscale funnel...)
+# keybind: Tmux/pattan ports:normal | Space g p | Go to the tmux pane the server runs in
+# keybind: Tmux/pattan ports:normal | Space g t | Go to the port's tunnel in the Tunnels tab
+# keybind: Tmux/pattan tunnels:normal | Enter / Space o b | Open the tunnel's public URL in the browser
+# keybind: Tmux/pattan tunnels:normal | o / Space o l | Open the local server the tunnel points at
+# keybind: Tmux/pattan tunnels:normal | y / Space y p | Copy the public URL
+# keybind: Tmux/pattan tunnels:normal | Space y u | Copy the local URL the tunnel points at
+# keybind: Tmux/pattan tunnels:normal | J | Move to the next of the tunnel's last requests (ngrok)
+# keybind: Tmux/pattan tunnels:normal | K | Move to the previous of the tunnel's last requests (ngrok)
+# keybind: Tmux/pattan tunnels:normal | Space i r | Send the selected request through the tunnel again (ngrok replay)
+# keybind: Tmux/pattan tunnels:normal | Space i i | Open ngrok's request inspector in the browser
+# keybind: Tmux/pattan tunnels:normal | d d / x / Space d t | Stop the tunnel (asks first)
+# keybind: Tmux/pattan:insert | Esc | Stop typing and keep the filter (back to NORMAL)
+# keybind: Tmux/pattan:insert | Ctrl+j / Down / Ctrl+n | Move to the next port while typing
+# keybind: Tmux/pattan:insert | Ctrl+k / Up / Ctrl+p | Move to the previous port while typing

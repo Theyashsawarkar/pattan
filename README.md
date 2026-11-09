@@ -79,40 +79,86 @@ Everything refreshes every 2 seconds; the HTTP check every 10.
 
 ## Keys
 
-| Key | Does |
+pattan uses the vim grammar every Vayu tool shares
+([vyakarana](https://github.com/Theyashsawarkar/vyakarana)): in NORMAL,
+keys are commands and typing changes nothing; `/` starts INSERT to filter
+(`Esc` goes back and keeps the filter). `Space` is the leader: press it and
+a box lists what can follow (`Space y` copies, `Space d` stops, `Space g`
+goes to, `Space t` switches tabs...). `Space Space` searches every action,
+`?` shows every key. Counts work (`5j`, `3gg`). Anything that stops a
+server or a tunnel asks first, and only `y` says yes.
+
+Keys that moved say where they went for one release: `t` → `Space a t`,
+`T` → `Space g t`, `K` (force stop) → `Space d k`, `a` → `Space t a`, on a
+tunnel `R` → `Space i r` and `i` → `Space i i`. `g` now starts `g g`; the
+tmux pane is `Space g p`. Tabs are `H` / `L` (`Tab` and `h` / `l` too);
+`1`–`4` are counts now, the tabs are `Space t 1`–`4`.
+
+<!-- keys: generated from the keymap; run the tests with -update -->
+**Everywhere**
+
+| Keys | What it does |
 |---|---|
-| `j` / `k` | Move to the next / previous port |
-| `Home` / `End` | Jump to the first / last |
-| `Tab` / `Shift+Tab`, `h` / `l`, `1`–`4` | Switch tabs |
-| `a` | Show every listening port |
-| `/` | Search the list (port, app, project, URL); `Esc` clears it |
-| `r` | Rescan now |
-| `?` | Show every key |
-| `q` / `Esc` | Quit |
+| <kbd>j</kbd> or <kbd>Down</kbd> | Move to the next port |
+| <kbd>k</kbd> or <kbd>Up</kbd> | Move to the previous port |
+| <kbd>g</kbd> <kbd>g</kbd> or <kbd>Home</kbd> | Jump to the first port (5gg: the fifth) |
+| <kbd>G</kbd> or <kbd>End</kbd> | Jump to the last port (5G: the fifth) |
+| <kbd>Ctrl+d</kbd> or <kbd>PgDn</kbd> | Scroll half a page down |
+| <kbd>Ctrl+u</kbd> or <kbd>PgUp</kbd> | Scroll half a page up |
+| <kbd>L</kbd> or <kbd>Tab</kbd> | Switch to the next tab |
+| <kbd>H</kbd> or <kbd>Shift+Tab</kbd> | Switch to the previous tab |
+| <kbd>/</kbd> or <kbd>Space</kbd> <kbd>f</kbd> <kbd>f</kbd> | Search the list by port, app, project or URL (filters it) |
+| <kbd>r</kbd> or <kbd>Space</kbd> <kbd>r</kbd> | Rescan the ports now (it also rescans every 2 s) |
+| <kbd>?</kbd> or <kbd>Space</kbd> <kbd>?</kbd> | Show every key of this view |
+| <kbd>q</kbd> or <kbd>Space</kbd> <kbd>q</kbd> | Quit |
+| <kbd>Esc</kbd> | Go back one step: clear the filter, then quit |
+| <kbd>Space</kbd> <kbd>Space</kbd> | Search every action and run one (the palette) |
+| <kbd>Space</kbd> <kbd>t</kbd> | *Tabs…* |
+| <kbd>Space</kbd> <kbd>t</kbd> <kbd>d</kbd> or <kbd>Space</kbd> <kbd>t</kbd> <kbd>1</kbd> | Switch to Dev servers |
+| <kbd>Space</kbd> <kbd>t</kbd> <kbd>a</kbd> or <kbd>Space</kbd> <kbd>t</kbd> <kbd>2</kbd> | Switch to All listening (every port) |
+| <kbd>Space</kbd> <kbd>t</kbd> <kbd>t</kbd> or <kbd>Space</kbd> <kbd>t</kbd> <kbd>3</kbd> | Switch to Tunnels |
+| <kbd>Space</kbd> <kbd>t</kbd> <kbd>k</kbd> or <kbd>Space</kbd> <kbd>t</kbd> <kbd>4</kbd> | Switch to Docker |
+| | *While typing* |
+| <kbd>Esc</kbd> | Stop typing and keep the filter (back to NORMAL) |
+| <kbd>Ctrl+j</kbd> or <kbd>Down</kbd> or <kbd>Ctrl+n</kbd> | Move to the next port while typing |
+| <kbd>Ctrl+k</kbd> or <kbd>Up</kbd> or <kbd>Ctrl+p</kbd> | Move to the previous port while typing |
 
-On a port:
+**On a port**
 
-| Key | Does |
+| Keys | What it does |
 |---|---|
-| `Enter` | Open `localhost:port` in the browser |
-| `y` / `Y` | Copy the URL / the URL for your local network |
-| `g` | Jump to the tmux pane the server runs in |
-| `t` | Start a tunnel to it (share it) |
-| `T` | Show its tunnel in the Tunnels tab |
-| `x` | Stop it (SIGTERM; a container: `docker stop`), asks first |
-| `K` | Force stop it (SIGKILL), asks first |
+| <kbd>Enter</kbd> | Open localhost:port in the browser |
+| <kbd>o</kbd> or <kbd>Space</kbd> <kbd>o</kbd> <kbd>b</kbd> | Open localhost:port in the browser |
+| <kbd>y</kbd> or <kbd>Space</kbd> <kbd>y</kbd> <kbd>u</kbd> | Copy the URL |
+| <kbd>Y</kbd> or <kbd>Space</kbd> <kbd>y</kbd> <kbd>l</kbd> | Copy the URL other machines on your network can use |
+| <kbd>d</kbd> <kbd>d</kbd> or <kbd>x</kbd> or <kbd>Space</kbd> <kbd>d</kbd> <kbd>s</kbd> | Stop the server (asks first; a container is stopped with docker stop) |
+| <kbd>Space</kbd> <kbd>a</kbd> | *Add…* |
+| <kbd>Space</kbd> <kbd>a</kbd> <kbd>t</kbd> | Start a tunnel to the port, to share it (ngrok, cloudflared, tailscale funnel...) |
+| <kbd>Space</kbd> <kbd>d</kbd> | *Delete…* |
+| <kbd>Space</kbd> <kbd>d</kbd> <kbd>k</kbd> | Kill the server at once (SIGKILL; asks first) |
+| <kbd>Space</kbd> <kbd>d</kbd> <kbd>t</kbd> | Stop the port's tunnel (asks first) |
+| <kbd>Space</kbd> <kbd>g</kbd> | *Go to…* |
+| <kbd>Space</kbd> <kbd>g</kbd> <kbd>p</kbd> | Go to the tmux pane the server runs in |
+| <kbd>Space</kbd> <kbd>g</kbd> <kbd>t</kbd> | Go to the port's tunnel in the Tunnels tab |
+| <kbd>Space</kbd> <kbd>y</kbd> | *Copy…* |
+| <kbd>Space</kbd> <kbd>y</kbd> <kbd>p</kbd> | Copy the public URL of the port's tunnel |
 
-On a tunnel:
+**On a tunnel**
 
-| Key | Does |
+| Keys | What it does |
 |---|---|
-| `Enter` | Open the public URL |
-| `o` | Open the local server it points at |
-| `y` | Copy the public URL |
-| `J` / `K` | Move through ngrok's last requests |
-| `R` | Send the selected request again (ngrok replay) |
-| `i` | Open ngrok's inspector |
-| `x` | Stop the tunnel, asks first |
+| <kbd>Enter</kbd> or <kbd>Space</kbd> <kbd>o</kbd> <kbd>b</kbd> | Open the tunnel's public URL in the browser |
+| <kbd>o</kbd> or <kbd>Space</kbd> <kbd>o</kbd> <kbd>l</kbd> | Open the local server the tunnel points at |
+| <kbd>y</kbd> or <kbd>Space</kbd> <kbd>y</kbd> <kbd>p</kbd> | Copy the public URL |
+| <kbd>J</kbd> | Move to the next of the tunnel's last requests (ngrok) |
+| <kbd>K</kbd> | Move to the previous of the tunnel's last requests (ngrok) |
+| <kbd>d</kbd> <kbd>d</kbd> or <kbd>x</kbd> or <kbd>Space</kbd> <kbd>d</kbd> <kbd>t</kbd> | Stop the tunnel (asks first) |
+| <kbd>Space</kbd> <kbd>i</kbd> | *Inspect…* |
+| <kbd>Space</kbd> <kbd>i</kbd> <kbd>r</kbd> | Send the selected request through the tunnel again (ngrok replay) |
+| <kbd>Space</kbd> <kbd>i</kbd> <kbd>i</kbd> | Open ngrok's request inspector in the browser |
+| <kbd>Space</kbd> <kbd>y</kbd> | *Copy…* |
+| <kbd>Space</kbd> <kbd>y</kbd> <kbd>u</kbd> | Copy the local URL the tunnel points at |
+<!-- /keys -->
 
 ## Install
 

@@ -18,8 +18,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/Theyashsawarkar/vyakarana/keymap"
+	"github.com/Theyashsawarkar/vyakarana/mode"
+	"github.com/Theyashsawarkar/vyakarana/popup"
+	"github.com/Theyashsawarkar/vyakarana/ui"
+
 	"github.com/Theyashsawarkar/pattan/internal/scan"
-	"github.com/Theyashsawarkar/pattan/internal/ui"
 )
 
 const (
@@ -44,20 +48,15 @@ type item struct {
 	heading string
 }
 
-type popup int
+type pop int
 
 const (
-	popNone popup = iota
+	popNone pop = iota
 	popHelp
 	popConfirm
 	popShare
+	popPalette
 )
-
-type confirm struct {
-	title, body, yes string
-	color            string
-	act              func() tea.Msg
-}
 
 // Model is the screen.
 type Model struct {
@@ -85,12 +84,15 @@ type Model struct {
 	filter    textinput.Model
 	filtering bool
 
-	pop     popup
-	conf    *confirm
+	eng     keymap.Engine
+	which   bool // the which-key box is showing
+	pop     pop
+	conf    popup.Confirm
+	help    popup.Help
+	pal     popup.Palette
 	share   []scan.Sharer
 	shareP  int
 	shareAt int
-	helpTop int
 
 	msg    string
 	msgErr bool
@@ -103,7 +105,7 @@ func New(opt Options) Model {
 	f := textinput.New()
 	f.Prompt = "/ "
 	f.Placeholder = "port, app, project…"
-	return Model{opt: opt, st: st, stamp: ui.ThemeStamp(), scanner: &scan.Scanner{}, filter: f,
+	return Model{opt: opt, st: st, stamp: ui.ThemeStamp(), scanner: &scan.Scanner{}, filter: f, eng: keymap.NewEngine(Keys, mode.Normal),
 		panes: map[int]scan.Pane{}, probes: map[int]scan.Probe{}, probing: map[int]bool{}, reqs: map[string][]scan.Request{},
 		ip: lanIP()}
 }
@@ -228,8 +230,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.msg = ""
 		}
 		return m, nil
+	case popup.WhichMsg:
+		m.which = msg.Gen == m.eng.Gen() && m.eng.Waiting()
+		return m, nil
 	case tea.KeyMsg:
-		return m.key(msg)
+		return m.keys(msg)
 	}
 	return m, nil
 }
@@ -434,24 +439,64 @@ func (m Model) listenerOn(port int) *scan.Listener {
 
 // ------------------------------------------------------------- keys
 
+// where is the view the keys work in: a port's row or a tunnel's.
+func (m Model) where() string {
+	it := m.current()
+	switch {
+	case it.t != nil:
+		return onTunnel
+	case it.l != nil:
+		return onPort
+	}
+	return ""
+}
+
+// keys takes a key press. Bubble Tea hands letters that arrive together
+// (a fast burst: "dd", "gg", "5j") as one message: they are fed one at a
+// time, like vim. A confirm that opens drops the rest of the burst, so a
+// fast "ddy" never answers it. A paste stays whole.
+func (m Model) keys(k tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if k.Type != tea.KeyRunes || len(k.Runes) < 2 || k.Paste || m.filtering && m.pop == popNone {
+		return m.key(k)
+	}
+	var cmds []tea.Cmd
+	for _, r := range k.Runes {
+		one := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}, Alt: k.Alt}
+		if r == ' ' {
+			one.Type = tea.KeySpace
+		}
+		nm, cmd := m.key(one)
+		m = nm.(Model)
+		cmds = append(cmds, cmd)
+		if m.pop == popConfirm {
+			break
+		}
+	}
+	return m, tea.Batch(cmds...)
+}
+
 func (m Model) key(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	s := k.String()
+	m.which = false
 	switch m.pop {
 	case popHelp:
-		switch s {
-		case "j", "down":
-			m.helpTop++
-		case "k", "up":
-			m.helpTop = max(0, m.helpTop-1)
-		default:
+		if popup.IsPopupKey(s, m.opt.PopupKey) { // in a tmux popup: its key closes it
+			return m, tea.Quit
+		}
+		if m.help.Key(s) {
 			m.pop = popNone
 		}
 		return m, nil
 	case popConfirm:
-		c := m.conf
-		m.pop, m.conf = popNone, nil
-		if s == "y" || s == "Y" {
-			return m, c.act
+		m.pop = popNone
+		return m, m.conf.Answer(s)
+	case popPalette:
+		act, closed := m.pal.Key(s)
+		if closed {
+			m.pop = popNone
+		}
+		if act != "" {
+			return m.run(act, 1, false)
 		}
 		return m, nil
 	case popShare:
@@ -471,86 +516,115 @@ func (m Model) key(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	if m.filtering {
-		switch s {
-		case "esc":
-			m.filtering = false
-			m.filter.SetValue("")
-			m.filter.Blur()
-		case "enter":
-			m.filtering = false
-			m.filter.Blur()
-		case "up", "down", "ctrl+n", "ctrl+p":
-			m.move(map[string]int{"up": -1, "ctrl+p": -1}[s]*2 + 1)
-		default:
-			var cmd tea.Cmd
-			m.filter, cmd = m.filter.Update(k)
-			m.sel[m.tab] = 0
-			m.clamp()
-			return m, cmd
-		}
+	if m.eng.Mode == mode.Normal && !m.eng.Waiting() && popup.IsPopupKey(s, m.opt.PopupKey) {
+		return m, tea.Quit
+	}
+	r := m.eng.Feed(s, m.where())
+	if !r.Handled { // typing in the filter
+		var cmd tea.Cmd
+		m.filter, cmd = m.filter.Update(k)
+		m.sel[m.tab] = 0
+		m.clamp()
+		return m, cmd
+	}
+	if r.Pending {
+		return m, popup.WhichAfter(r.Gen)
+	}
+	if msg := r.Message(); msg != "" {
+		return m, m.say(msg, nil)
+	}
+	if r.Act == "" {
 		return m, nil
 	}
-	if m.opt.PopupKey != "" && s == m.opt.PopupKey {
+	return m.run(r.Act, r.Count, r.Counted)
+}
+
+// run does an action, from a key or the palette.
+func (m Model) run(act string, n int, counted bool) (tea.Model, tea.Cmd) {
+	switch act {
+	case keymap.ActQuit:
 		return m, tea.Quit
-	}
-	switch s {
-	case "q", "ctrl+c":
-		return m, tea.Quit
-	case "esc":
+	case keymap.ActEsc:
 		if m.filter.Value() != "" {
 			m.filter.SetValue("")
 			m.clamp()
 			return m, nil
 		}
 		return m, tea.Quit
-	case "?":
-		m.pop, m.helpTop = popHelp, 0
+	case keymap.ActHelp:
+		m.pop, m.help = popHelp, popup.Help{}
 		return m, nil
-	case "/":
+	case keymap.ActPalette:
+		m.pop, m.pal = popPalette, popup.NewPalette(Keys, m.where())
+		return m, nil
+	case keymap.ActSearch:
 		m.filtering = true
+		m.eng.SetMode(mode.Insert)
 		return m, m.filter.Focus()
-	case "j", "down":
-		m.move(1)
+	case "insert-done":
+		m.filtering = false
+		m.filter.Blur()
+		m.eng.SetMode(mode.Normal)
+		return m, nil
+	case keymap.ActDown, keymap.ActUp:
+		d := 1
+		if act == keymap.ActUp {
+			d = -1
+		}
+		for i := 0; i < n; i++ {
+			m.move(d)
+		}
 		return m, m.reqsCmd()
-	case "k", "up":
-		m.move(-1)
-		return m, m.reqsCmd()
-	case "home":
-		m.sel[m.tab] = 0
+	case keymap.ActTop, keymap.ActBottom:
+		its := m.items(m.tab)
+		if counted { // 5gg, 5G: the fifth row
+			k := 0
+			for i, it := range its {
+				if it.heading == "" {
+					k++
+					if k == n {
+						m.sel[m.tab] = i
+						break
+					}
+				}
+			}
+		} else if act == keymap.ActTop {
+			m.sel[m.tab] = 0
+		} else {
+			m.sel[m.tab] = len(its) - 1
+		}
 		m.clamp()
 		return m, m.reqsCmd()
-	case "end":
-		m.sel[m.tab] = len(m.items(m.tab)) - 1
-		m.clamp()
+	case keymap.ActHalfDown, keymap.ActHalfUp:
+		d := 1
+		if act == keymap.ActHalfUp {
+			d = -1
+		}
+		for i := 0; i < m.listRows()/2; i++ {
+			m.move(d)
+		}
 		return m, m.reqsCmd()
-	case "ctrl+d", "pgdown":
-		for i := 0; i < m.listRows()/2; i++ {
-			m.move(1)
-		}
-		return m, nil
-	case "ctrl+u", "pgup":
-		for i := 0; i < m.listRows()/2; i++ {
-			m.move(-1)
-		}
-		return m, nil
-	case "tab", "l", "right":
+	case keymap.ActNextTab:
 		return m.setTab((m.tab + 1) % 4)
-	case "shift+tab", "h", "left":
+	case keymap.ActPrevTab:
 		return m.setTab((m.tab + 3) % 4)
-	case "1", "2", "3", "4":
-		return m.setTab(int(s[0] - '1'))
-	case "a":
+	case "tab-dev":
+		return m.setTab(tabDev)
+	case "tab-all":
 		return m.setTab(tabAll)
-	case "r":
+	case "tab-tunnels":
+		return m.setTab(tabTunnels)
+	case "tab-docker":
+		return m.setTab(tabDocker)
+	case keymap.ActRefresh:
 		return m, tea.Batch(m.scan(), m.say("rescanning…", nil))
 	}
 	it := m.current()
 	if it.t != nil {
-		return m.tunnelKey(s, it.t)
+		return m.tunnelAct(act, it.t)
 	}
 	if it.l != nil {
-		return m.portKey(s, it.l)
+		return m.portAct(act, it.l)
 	}
 	return m, nil
 }
@@ -562,34 +636,40 @@ func (m Model) setTab(t int) (tea.Model, tea.Cmd) {
 	return m, m.reqsCmd()
 }
 
-func (m Model) portKey(s string, l *scan.Listener) (tea.Model, tea.Cmd) {
-	switch s {
-	case "enter", "o":
+func (m Model) portAct(act string, l *scan.Listener) (tea.Model, tea.Cmd) {
+	switch act {
+	case "open":
 		return m, openURL(l.URL())
-	case "y":
+	case "copy-url":
 		return m, copyText(l.URL())
-	case "Y":
+	case "copy-lan":
 		if !l.Public() || m.ip == "" {
 			return m, m.say(fmt.Sprintf(":%d only listens on this machine (start it with --host to reach it from others)", l.Port), nil)
 		}
 		return m, copyText("http://" + m.ip + ":" + strconv.Itoa(l.Port))
-	case "g":
+	case "copy-public":
+		t := m.tunnelFor(l.Port)
+		if t == nil || t.Public == "" {
+			return m, m.say(fmt.Sprintf(":%d has no tunnel: Space a t starts one", l.Port), nil)
+		}
+		return m, copyText(t.Public)
+	case "go-pane":
 		p, ok := m.panes[l.PID]
 		if !ok {
 			return m, m.say("it doesn't run in a tmux pane", nil)
 		}
 		return m, jumpTo(p, m.opt.Client)
-	case "t":
+	case "share":
 		m.share = scan.Sharers()
 		if len(m.share) == 0 {
 			return m, m.say("no tunnel tool installed: ngrok, cloudflared, tailscale, lt (localtunnel) or bore", nil)
 		}
 		m.pop, m.shareP, m.shareAt = popShare, l.Port, 0
 		return m, nil
-	case "T":
+	case "go-tunnel":
 		t := m.tunnelFor(l.Port)
 		if t == nil {
-			return m, m.say(fmt.Sprintf(":%d has no tunnel: t starts one", l.Port), nil)
+			return m, m.say(fmt.Sprintf(":%d has no tunnel: Space a t starts one", l.Port), nil)
 		}
 		m.tab = tabTunnels
 		for i, it := range m.items(tabTunnels) {
@@ -598,8 +678,14 @@ func (m Model) portKey(s string, l *scan.Listener) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, m.reqsCmd()
-	case "x", "K":
-		return m.askStop(l, s == "K")
+	case "stop-tunnel":
+		t := m.tunnelFor(l.Port)
+		if t == nil {
+			return m, m.say(fmt.Sprintf(":%d has no tunnel", l.Port), nil)
+		}
+		return m.tunnelAct(act, t)
+	case "stop", "kill":
+		return m.askStop(l, act == "kill")
 	}
 	return m, nil
 }
@@ -607,8 +693,8 @@ func (m Model) portKey(s string, l *scan.Listener) (tea.Model, tea.Cmd) {
 func (m Model) askStop(l *scan.Listener, force bool) (tea.Model, tea.Cmd) {
 	if l.Docker != nil {
 		c := *l.Docker
-		m.conf = &confirm{title: "stop " + c.Name + "?", body: "docker stop " + c.Name + " (" + c.Image + "); docker start brings it back.",
-			yes: "stop the container", color: m.st.T.Peach, act: func() tea.Msg {
+		m.conf = popup.Confirm{Title: "stop " + c.Name + "?", Body: "docker stop " + c.Name + " (" + c.Image + "); docker start brings it back.",
+			YesText: "stop the container", Color: m.st.T.Peach, Act: func() tea.Msg {
 				out, err := exec.Command("docker", "stop", c.ID).CombinedOutput()
 				if err != nil {
 					return doneMsg{err: fmt.Errorf("docker stop: %s", strings.TrimSpace(string(out)))}
@@ -626,8 +712,8 @@ func (m Model) askStop(l *scan.Listener, force bool) (tea.Model, tea.Cmd) {
 	if force {
 		sig, how, color = syscall.SIGKILL, "kills it at once (SIGKILL): unsaved work is lost", m.st.T.Red
 	}
-	m.conf = &confirm{title: fmt.Sprintf("stop %s on :%d?", name, port), body: fmt.Sprintf("pid %d · %s", pid, how), yes: "stop it", color: color,
-		act: func() tea.Msg {
+	m.conf = popup.Confirm{Title: fmt.Sprintf("stop %s on :%d?", name, port), Body: fmt.Sprintf("pid %d · %s", pid, how), YesText: "stop it", Color: color,
+		Act: func() tea.Msg {
 			if err := syscall.Kill(pid, sig); err != nil {
 				return doneMsg{err: fmt.Errorf("couldn't stop pid %d: %v", pid, err)}
 			}
@@ -652,10 +738,10 @@ func (m Model) startShare(i int) (tea.Model, tea.Cmd) {
 	})
 }
 
-func (m Model) tunnelKey(s string, t *scan.Tunnel) (tea.Model, tea.Cmd) {
+func (m Model) tunnelAct(act string, t *scan.Tunnel) (tea.Model, tea.Cmd) {
 	reqs := m.reqs[t.API+t.Name]
-	switch s {
-	case "enter":
+	switch act {
+	case "open":
 		if !t.Seen() {
 			return m, m.say("its public URL isn't known: "+t.Note, nil)
 		}
@@ -664,26 +750,31 @@ func (m Model) tunnelKey(s string, t *scan.Tunnel) (tea.Model, tea.Cmd) {
 			u = "http://" + u
 		}
 		return m, openURL(u)
-	case "o":
+	case "open-local":
 		if t.Port == 0 {
 			return m, nil
 		}
 		return m, openURL("http://localhost:" + strconv.Itoa(t.Port))
-	case "y":
+	case "copy-public":
 		if t.Public == "" {
 			return m, nil
 		}
 		return m, copyText(t.Public)
-	case "i":
+	case "copy-local":
+		if t.Port == 0 {
+			return m, nil
+		}
+		return m, copyText("http://localhost:" + strconv.Itoa(t.Port))
+	case "inspect":
 		if t.API == "" {
 			return m, m.say("only ngrok has an inspector", nil)
 		}
 		return m, openURL(t.API)
-	case "J":
+	case "req-next":
 		m.reqSel = min(max(0, len(reqs)-1), m.reqSel+1)
-	case "K":
+	case "req-prev":
 		m.reqSel = max(0, m.reqSel-1)
-	case "R":
+	case "replay":
 		if m.reqSel >= len(reqs) {
 			return m, m.say("no request to send again", nil)
 		}
@@ -694,14 +785,14 @@ func (m Model) tunnelKey(s string, t *scan.Tunnel) (tea.Model, tea.Cmd) {
 			}
 			return doneMsg{text: "sent again: " + r.Method + " " + r.URI}
 		}
-	case "x":
+	case "stop-tunnel":
 		tt := *t
 		what := tt.Public
 		if what == "" {
 			what = tt.Cmd
 		}
-		m.conf = &confirm{title: "stop the " + tt.Tool + " tunnel?", body: what + " stops being reachable.", yes: "stop it", color: m.st.T.Peach,
-			act: func() tea.Msg {
+		m.conf = popup.Confirm{Title: "stop the " + tt.Tool + " tunnel?", Body: what + " stops being reachable.", YesText: "stop it", Color: m.st.T.Peach,
+			Act: func() tea.Msg {
 				if err := scan.StopTunnel(tt); err != nil {
 					return doneMsg{err: err}
 				}
@@ -822,16 +913,22 @@ func (m Model) View() string {
 	body := lipgloss.JoinHorizontal(lipgloss.Top, left, right2)
 	switch m.pop {
 	case popHelp:
-		box := m.helpBox(bh)
+		box := m.help.Box(st, Keys, m.where(), m.w, bh)
 		body = ui.Overlay(body, box, m.w, max(0, (bh-len(box))/2))
+	case popPalette:
+		box := m.pal.Box(st, m.w, bh)
+		body = ui.Overlay(body, box, m.w, max(0, (bh-len(box))/3))
 	case popConfirm:
-		w := min(m.w-4, 72)
-		lines := append(ui.Wrap(m.conf.body, w-4), "", st.Key("y", m.conf.yes)+"   "+st.Key("n", "keep it"))
-		box := st.Popup(m.conf.title, lines, w, m.conf.color)
+		box := m.conf.Box(st, m.w)
 		body = ui.Overlay(body, box, m.w, max(0, (bh-len(box))/2))
 	case popShare:
 		box := m.shareBox()
 		body = ui.Overlay(body, box, m.w, max(0, (bh-len(box))/2))
+	}
+	if m.which && m.pop == popNone {
+		if box := popup.WhichKey(st, m.eng.Pending(), m.eng.Hints(m.where()), m.w); len(box) > 0 {
+			body = ui.Overlay(body, box, m.w, max(0, bh-len(box)-1))
+		}
 	}
 	rows := []string{top}
 	if m.filtering || m.filter.Value() != "" {
@@ -940,7 +1037,7 @@ func (m Model) listLines(w, h int) []string {
 		msg := map[int]string{
 			tabDev:     "No dev servers running. Ones you start in a project folder (npm run dev, manage.py runserver...) show up here.",
 			tabAll:     "Nothing listens.",
-			tabTunnels: "No tunnels. t on a port starts one (ngrok, cloudflared, tailscale funnel, localtunnel, bore); ones you start yourself show up here too.",
+			tabTunnels: "No tunnels. Space a t on a port starts one (ngrok, cloudflared, tailscale funnel, localtunnel, bore); ones you start yourself show up here too.",
 			tabDocker:  "No container publishes a port (or Docker isn't running).",
 		}[m.tab]
 		if m.filter.Value() != "" {
@@ -1128,7 +1225,7 @@ func (m Model) details(w int) (string, []string) {
 		kv = append(kv, [2]string{"process", fmt.Sprintf("%s (pid %d)", l.Proc, l.PID)}, [2]string{"command", st.Sub.Render(cmd)})
 		kv = append(kv, [2]string{"folder", tilde(l.Cwd)})
 		if pane, ok := m.panes[l.PID]; ok {
-			kv = append(kv, [2]string{"tmux pane", st.Accent.Render(pane.Target+" · "+pane.Name) + st.Muted.Render("  (g goes there)")})
+			kv = append(kv, [2]string{"tmux pane", st.Accent.Render(pane.Target+" · "+pane.Name) + st.Muted.Render("  (Space g p goes there)")})
 		}
 		run := ago(l.Started)
 		if r := mb(l.RSS); r != "" {
@@ -1146,7 +1243,7 @@ func (m Model) details(w int) (string, []string) {
 	for _, line := range st.KV(kv, 12) {
 		out = append(out, ui.Fit(line, w))
 	}
-	out = append(out, "", st.Muted.Render("enter opens · y copies the URL · g its tmux pane · t shares · x stops"))
+	out = append(out, "", st.Muted.Render("enter opens · y copies the URL · Space g p its tmux pane · Space a t shares · dd stops"))
 	return title, out
 }
 
@@ -1170,14 +1267,14 @@ func (m Model) tunnelDetails(t *scan.Tunnel, w int) (string, []string) {
 		kv = append(kv, [2]string{"running", ago(t.Started)})
 	}
 	if t.API != "" {
-		kv = append(kv, [2]string{"inspector", st.Blue.Render(t.API) + st.Muted.Render("  (i opens it)")})
+		kv = append(kv, [2]string{"inspector", st.Blue.Render(t.API) + st.Muted.Render("  (Space i i opens it)")})
 	}
 	if t.Note != "" {
 		kv = append(kv, [2]string{"note", st.Muted.Render(t.Note)})
 	}
 	out := st.KV(kv, 10)
 	if t.API != "" {
-		out = append(out, "", st.Heading("last requests")+st.Muted.Render("  J/K pick · R sends again"))
+		out = append(out, "", st.Heading("last requests")+st.Muted.Render("  J/K pick · Space i r sends again"))
 		reqs := m.reqs[t.API+t.Name]
 		if len(reqs) == 0 {
 			out = append(out, st.Muted.Render("none yet"))
@@ -1202,7 +1299,7 @@ func (m Model) tunnelDetails(t *scan.Tunnel, w int) (string, []string) {
 			out = append(out, ui.Fit(line, w))
 		}
 	}
-	out = append(out, "", st.Muted.Render("enter opens the public URL · o the local one · y copies · x stops"))
+	out = append(out, "", st.Muted.Render("enter opens the public URL · o the local one · y copies · dd stops"))
 	return title, out
 }
 
@@ -1226,41 +1323,21 @@ func (m Model) shareBox() []string {
 	return st.Popup(fmt.Sprintf("share :%d%s", m.shareP, name), lines, w, "")
 }
 
-func (m Model) helpBox(bh int) []string {
-	st := m.st
-	w := min(m.w-4, 92)
-	var lines []string
-	where := "-"
-	for _, k := range Keys {
-		if k.Where != where {
-			where = k.Where
-			if len(lines) > 0 {
-				lines = append(lines, "")
-			}
-			lines = append(lines, st.Heading(map[string]string{"": "everywhere", "ports": "on a port", "tunnels": "on a tunnel"}[where]))
-		}
-		lines = append(lines, st.Accent.Render(ui.Fit(k.Keys, 17))+" "+k.Desc)
-	}
-	room := max(3, bh-4)
-	top := min(m.helpTop, max(0, len(lines)-room))
-	lines = lines[top:min(len(lines), top+room)]
-	return st.Popup("keys · any key closes", lines, w, "")
-}
-
 func (m Model) footer() string {
 	st := m.st
 	var keys [][2]string
-	mode := "ports"
 	switch {
 	case m.filtering:
-		mode, keys = "filter", [][2]string{{"↵", "keep"}, {"esc", "clear"}}
-	case m.tab == tabTunnels:
-		mode = "tunnels"
-		keys = [][2]string{{"↵", "open public URL"}, {"o", "open local"}, {"y", "copy"}, {"J/K", "requests"}, {"R", "send again"}, {"i", "inspector"}, {"x", "stop"}, {"?", "keys"}}
+		keys = [][2]string{{"esc", "done"}, {"^j/^k", "move"}}
+	case m.where() == onTunnel:
+		keys = [][2]string{{"↵", "open public URL"}, {"o", "open local"}, {"y", "copy"}, {"J/K", "requests"}, {"dd", "stop"}, {"␣", "more"}, {"?", "keys"}}
 	default:
-		keys = [][2]string{{"j/k", "move"}, {"↵", "open in browser"}, {"y", "copy URL"}, {"g", "its tmux pane"}, {"t", "share"}, {"x", "stop"}, {"a", "all ports"}, {"/", "filter"}, {"?", "keys"}}
+		keys = [][2]string{{"j/k", "move"}, {"H/L", "tabs"}, {"↵", "open"}, {"y", "copy URL"}, {"dd", "stop"}, {"/", "filter"}, {"␣", "more"}, {"?", "keys"}}
 	}
 	msg := ""
+	if m.eng.Waiting() {
+		msg = st.Peach.Render(m.eng.Pending() + " …")
+	}
 	if m.msg != "" {
 		if m.msgErr {
 			msg = st.Red.Render(m.msg)
@@ -1268,5 +1345,5 @@ func (m Model) footer() string {
 			msg = st.Text.Render(m.msg)
 		}
 	}
-	return st.Footer(mode, keys, msg, m.w)
+	return st.Footer(m.eng.Mode.String(), keys, msg, m.w)
 }

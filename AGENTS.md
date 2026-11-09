@@ -9,13 +9,16 @@ must work on any Linux setup without Vayu: no hardcoded paths,
 Vayu-specific behaviour only through the `@pattan-*` options.
 
 - Layout: `internal/scan` finds things (ss and /proc for ports, docker ps,
-  HTTP probes, tunnels); `internal/tui` the screen; `internal/ui` the
-  drawing kit shared in look with narada and nauka (rounded boxes, tabs,
-  key caps, varna colours).
-- Keys live in `internal/tui/keys.go`. After adding, changing or removing
-  one: `go test ./internal/tui -update` (rewrites `scripts/keybindings`,
-  which Vayu's keybinding search reads), and update the README's key
-  tables. Descriptions start with a verb the search knows.
+  HTTP probes, tunnels); `internal/tui` the screen. The drawing kit (`ui`),
+  the key engine (`keymap`), the popups (help, palette, which-key,
+  confirm) come from github.com/Theyashsawarkar/vyakarana, shared with
+  nauka, vaikhari and darshan.
+- Keys follow the shared vim grammar (vyakarana's README): NORMAL / INSERT,
+  `Space` leader with reserved groups. They live as data in
+  `internal/tui/keys.go`. After adding, changing or removing one:
+  `go test ./internal/tui -update` (rewrites `scripts/keybindings`, which
+  Vayu's keybinding search reads, and the README's key tables between the
+  `<!-- keys -->` markers). Descriptions start with a verb the search knows.
 - Never send HTTP to a database's port (see `SkipHTTP`): it only fills its
   logs with errors.
 - The README documents every feature, key, option and command: a change to

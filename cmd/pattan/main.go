@@ -16,7 +16,7 @@ import (
 )
 
 // Version is pattan's version.
-const Version = "0.1.1"
+const Version = "0.2.0"
 
 const usage = `pattan: the ports your dev servers listen on, and their tunnels.
 
@@ -57,7 +57,7 @@ func main() {
 		fmt.Print(usage)
 		return
 	case cmd == "keybindings": // scripts/keybindings, for Vayu's keybinding search
-		fmt.Print(tui.KeybindingsFile())
+		fmt.Print(tui.Keys.KeybindingsFile("Tmux", "go test ./internal/tui -update"))
 		return
 	case cmd != "":
 		fmt.Fprintf(os.Stderr, "pattan: unknown command %q\n\n%s", cmd, usage)
